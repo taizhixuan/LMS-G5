@@ -3,11 +3,17 @@
 <?php include('navbar_borrow.php'); ?>
     <div class="container">
 		<div class="margin-top">
-			<div class="row">	
+			<div class="row">
 								<div class="alert alert-danger">
                                     <button type="button" class="close" data-dismiss="alert">&times;</button>
                                     <strong><i class="icon-user icon-large"></i>&nbsp;Borrow Table</strong>
                                 </div>
+<?php if (!empty($_SESSION['flash_error'])): ?>
+								<div class="alert alert-error" style="background:#fde2e2; border:1px solid #d9534f; color:#a94442;">
+                                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                                    <strong>Borrow rejected:</strong> <?php echo htmlspecialchars($_SESSION['flash_error']); ?>
+                                </div>
+<?php unset($_SESSION['flash_error']); endif; ?>
 
 		<div class="span12">		
 

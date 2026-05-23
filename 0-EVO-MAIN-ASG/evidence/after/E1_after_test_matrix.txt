@@ -1,0 +1,101 @@
+Captured: 2026-05-24
+Branch: feat/E1-server-validation
+Method: curl -b cookies.txt (authenticated as admin) POSTing directly
+        to borrow_save.php, bypassing the browser entirely and therefore
+        also bypassing the JS 3-book guard. This is the worst-case
+        attacker scenario the proposal §2 cited.
+
+Proves: Each of the 4 promised E1 rejection paths is enforced
+        server-side, AND the legitimate happy path still works, AND
+        the latent E3 due_date issue (DD/MM/YYYY -> 0000-00-00) is
+        fixed by the date conversion added in borrow_save.php.
+
+======================================================================
+T0 — baseline
+======================================================================
+max(borrow_id) = 485
+
+======================================================================
+T1 — happy path, 1 valid book
+======================================================================
+POST: selector[]=22 & member_id=52 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   borrow_id 486 inserted with member_id=52, due_date=2026-06-30
+      borrowdetails row 170 inserted with book_id=22, borrow_id=486
+✅ INSERTed AND due_date stored as proper DATE (not 0000-00-00)
+
+======================================================================
+T3 — reject: 5 books in one transaction
+======================================================================
+POST: selector[]=22, 23, 24, 25, 26 & member_id=52 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   max(borrow_id) still 486 — NO INSERT
+Flash: "Borrow rejected: You can borrow at most 3 books per transaction (received 5)."
+✅ REJECTED (was the proposal §2 Table 1.1 row 1 defect)
+
+======================================================================
+T4 — reject: zero books selected
+======================================================================
+POST: member_id=52 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   max(borrow_id) still 486 — NO INSERT
+Flash: "Borrow rejected: Please select at least one book."
+✅ REJECTED (proposal Appendix E test T04)
+
+======================================================================
+T5 — reject: non-existent member
+======================================================================
+POST: selector[]=22 & member_id=99999 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   max(borrow_id) still 486 — NO INSERT
+Flash: "Borrow rejected: Member ID 99999 does not exist."
+✅ REJECTED (proposal Appendix E test T05)
+
+======================================================================
+T6 — reject: non-existent book
+======================================================================
+POST: selector[]=99999 & member_id=52 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   max(borrow_id) still 486 — NO INSERT
+Flash: "Borrow rejected: Book ID 99999 does not exist."
+✅ REJECTED (proposal Appendix E test T06)
+
+======================================================================
+T7 — reject: duplicate book IDs in the same submission
+======================================================================
+POST: selector[]=22 & selector[]=22 & member_id=52 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   max(borrow_id) still 486 — NO INSERT
+Flash: "Borrow rejected: Duplicate books in selection are not allowed."
+✅ REJECTED (new T13 added by Stage 0 mission brief, not in original Appendix E)
+
+======================================================================
+T2 — happy path, 3 valid books (boundary)
+======================================================================
+POST: selector[]=23, 24, 25 & member_id=53 & due_date=30/06/2026
+HTTP: 302 Location: borrow.php
+DB:   borrow_id 487 inserted with member_id=53, due_date=2026-06-30
+      borrowdetails rows 171/172/173 inserted with books 23/24/25, borrow_id=487
+✅ INSERTed (3 books == boundary, still allowed)
+
+======================================================================
+Flash error rendered to the user (HTML excerpt from borrow.php after T3)
+======================================================================
+<div class="alert alert-error" style="background:#fde2e2; border:1px solid #d9534f; color:#a94442;">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <strong>Borrow rejected:</strong> You can borrow at most 3 books per
+    transaction (received 5).
+</div>
+
+======================================================================
+Acceptance criteria mapping
+======================================================================
+Plan criterion                                          Test  Status
+------------------------------------------------------- ----  -------
+Server rejects 4+ books regardless of JS bypass         T3    ✅
+Server rejects missing/non-existent member_id           T5    ✅
+Server rejects non-existent book_id                     T6    ✅
+Server rejects duplicate book_id in same submission     T7    ✅
+Latent DD/MM/YYYY due_date bug fixed                    T1    ✅
+JS guard still present in borrow.php (defence in depth) -     ✅ (line 94 unchanged)
+Happy path: 1-3 books still works                       T1,T2 ✅
