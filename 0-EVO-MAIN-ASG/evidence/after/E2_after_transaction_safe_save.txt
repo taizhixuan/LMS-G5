@@ -1,0 +1,156 @@
+Captured: 2026-05-24
+Branch: feat/E2-transaction-safe-save
+Method: curl POSTs + raw SQL + standalone PHP probe.
+
+Proves: borrow_save.php now retrieves the new borrow_id via
+mysqli_insert_id(), wraps the borrow-header INSERT + all
+borrowdetails INSERTs in mysqli_begin_transaction / mysqli_commit,
+and rolls back atomically on any failure.
+
+======================================================================
+Test 1 — Pre-E2 concurrency baseline (10 parallel curl POSTs)
+======================================================================
+Goal: confirm whether the unsafe ORDER BY DESC pattern races on this
+hardware in practice.
+
+10 unique (member, book) pairs fired in parallel:
+  52:22  53:23  54:24  55:25  56:26  57:27  58:28  59:29  60:30  62:31
+
+Result table (all 10 stored pairs):
+  borrow_id  stored_member  stored_book
+  486        52             22   <- matches 52:22
+  487        55             25   <- matches 55:25
+  488        54             24   <- matches 54:24
+  489        53             23   <- matches 53:23
+  490        56             26   <- matches 56:26
+  491        57             27   <- matches 57:27
+  492        58             28   <- matches 58:28
+  493        59             29   <- matches 59:29
+  494        60             30   <- matches 60:30
+  495        62             31   <- matches 62:31
+
+Mislinks: 0
+Interpretation: PHP's single-cookie session lock serialises the
+requests, so the race window in borrow_save.php (between INSERT and
+SELECT...ORDER BY DESC) never opens for a single librarian. In a
+real multi-librarian deployment (different sessions, different
+processes), the race becomes reachable — which is exactly the
+scenario the proposal Table 1.1 row 3 cites. The E2 fix is
+preventative; the negative reproducer here does not invalidate the
+underlying bug.
+
+======================================================================
+Test 2 — Post-E2 concurrency (same 10 parallel POSTs against new code)
+======================================================================
+Result table (all 10 stored pairs):
+  borrow_id  stored_member  stored_book
+  486        53             23   <- matches 53:23
+  487        52             22   <- matches 52:22
+  488        54             24   <- matches 54:24
+  489        55             25   <- matches 55:25
+  490        56             26   <- matches 56:26
+  491        57             27   <- matches 57:27
+  492        59             29   <- matches 59:29
+  493        58             28   <- matches 58:28
+  494        60             30   <- matches 60:30
+  495        62             31   <- matches 62:31
+
+Mislinks: 0
+Notes: borrow_ids assigned in a different interleaved order than
+pre-E2 (Apache worker scheduling), but every (member, book) pair is
+linked correctly because mysqli_insert_id() returns the per-connection
+last insert ID — immune to concurrent inserts by other connections.
+
+======================================================================
+Test 3 — Forced-failure rollback (DB-level, mariadb CLI)
+======================================================================
+Setup: single mysql connection, START TRANSACTION, INSERT borrow
+header, then INSERT borrowdetails with book_id=99999 (violates
+fk_borrowdetails_book).
+
+  START TRANSACTION;                                                    -- OK
+  INSERT INTO borrow (member_id, date_borrow, due_date)
+    VALUES (52, NOW(), '2026-06-30');                                   -- OK, LAST_INSERT_ID() = 486
+  INSERT INTO borrowdetails (book_id, borrow_id, borrow_status)
+    VALUES (99999, LAST_INSERT_ID(), 'pending');                        -- ERROR 1452 (FK)
+  -- (connection drops -> implicit rollback by MariaDB)
+
+After: max(borrow_id) = 485 (back to pre-test value). No orphan row.
+
+======================================================================
+Test 4 — Forced-failure rollback (PHP-level, mirrors borrow_save.php)
+======================================================================
+Standalone probe at /tmp/test_e2_rollback.php that uses the same
+mysqli_begin_transaction / try / catch / mysqli_rollback pattern as
+the production code, with book_ids = [22, 99999, 23] (middle one
+violates FK).
+
+  max(borrow_id) before: 485
+    inserted borrow header, borrow_id=487
+    inserted borrowdetails for book 22
+  ROLLBACK — caught: Cannot add or update a child row: a foreign key
+    constraint fails (`jnv`.`borrowdetails`, CONSTRAINT
+    `fk_borrowdetails_book` FOREIGN KEY (`book_id`) REFERENCES
+    `book` (`book_id`) ...)
+  max(borrow_id) after:  485
+  any orphan borrow rows with no borrowdetails? 0
+
+The auto-increment counter consumed 486 and 487 (InnoDB does not
+reclaim sequence numbers on rollback — expected behaviour). Crucially,
+no rows are committed, and the partially-inserted borrowdetails for
+book 22 is also rolled back.
+
+======================================================================
+Test 5 — E1 regression matrix (post-E2)
+======================================================================
+All 6 E1 cases re-run against the new transaction-wrapped code:
+
+  T1 1 valid book      ✅ INSERT (id=488)
+  T3 reject 5          ✅ rejected — "at most 3 books per transaction"
+  T5 bad member        ✅ rejected — "Member ID 99999 does not exist"
+  T6 bad book          ✅ rejected — "Book ID 99999 does not exist"
+  T7 duplicate         ✅ rejected — "Duplicate books in selection..."
+  T2 3 valid books     ✅ INSERT (id=489)
+
+Linkage check on the two successful inserts:
+  borrow_id  member  book
+  488        52      22                 (T1: member 52, book 22)
+  489        53      23                 (T2: member 53, books 23/24/25)
+  489        53      24
+  489        53      25
+
+All correctly linked. E1 validation untouched. E2 transaction wrapping
+does not interfere with the validation block above it.
+
+======================================================================
+Code-level proof — the actual change in librarian/borrow_save.php
+======================================================================
+Pre-E2:
+  mysqli_query($con, "INSERT INTO borrow ...");
+  $query = mysqli_query($con, "SELECT * FROM borrow ORDER BY borrow_id DESC");
+  $row = mysqli_fetch_array($query);
+  $borrow_id = $row['borrow_id'];     // race-prone
+  foreach ($book_ids as $bid) {
+      mysqli_query($con, "INSERT INTO borrowdetails ...");
+  }
+
+Post-E2:
+  mysqli_begin_transaction($con);
+  try {
+      $stmt = mysqli_prepare($con, "INSERT INTO borrow ...");
+      mysqli_stmt_bind_param($stmt, 'is', $member_id, $due_date_sql);
+      if (!mysqli_stmt_execute($stmt)) throw new Exception('...');
+      $borrow_id = mysqli_insert_id($con);   // per-connection, race-free
+      mysqli_stmt_close($stmt);
+
+      $stmt = mysqli_prepare($con, "INSERT INTO borrowdetails ...");
+      foreach ($book_ids as $bid) {
+          mysqli_stmt_bind_param($stmt, 'ii', $bid, $borrow_id);
+          if (!mysqli_stmt_execute($stmt)) throw new Exception('...');
+      }
+      mysqli_stmt_close($stmt);
+      mysqli_commit($con);
+  } catch (Exception $e) {
+      mysqli_rollback($con);
+      fail('Could not save borrow transaction: ' . $e->getMessage());
+  }
