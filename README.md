@@ -4,7 +4,6 @@
 >
 > Six enhancements have been applied to the borrow/return workflow and to PHP 8 compatibility. The original upstream README content is preserved below for attribution; the new setup steps live in [Group 5 fork setup](#group-5-fork-setup-cse6364-2026) — read that first.
 >
-> Project report: [`0-EVO-MAIN-ASG/Part_II_Report.md`](0-EVO-MAIN-ASG/Part_II_Report.md)
 > Evidence index: [`0-EVO-MAIN-ASG/evidence/MANIFEST.md`](0-EVO-MAIN-ASG/evidence/MANIFEST.md)
 > Test matrix:    [`0-EVO-MAIN-ASG/testing/test-matrix.md`](0-EVO-MAIN-ASG/testing/test-matrix.md)
 
@@ -38,7 +37,7 @@ mysql -u root --port=3306 -e "CREATE DATABASE jnv;"
 mysql -u root --port=3306 jnv < eb_lms.sql
 ```
 
-Note: the seed file is named `eb_lms.sql` but actually creates a database named `jnv`. The four `dbcon.php` copies have all been unified on `jnv`; this naming mismatch was the original confusion and is documented in [`0-EVO-MAIN-ASG/Part_II_Report.md`](0-EVO-MAIN-ASG/Part_II_Report.md) §7.1.
+Note: the seed file is named `eb_lms.sql` but actually creates a database named `jnv`. The four `dbcon.php` copies have all been unified on `jnv`; the upstream naming mismatch was fixed in commit `f44ac4a [setup] unify dbcon.php database name to jnv`.
 
 ### 3. Apply the schema upgrade migration
 
