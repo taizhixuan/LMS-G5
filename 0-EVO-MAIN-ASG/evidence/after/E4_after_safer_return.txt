@@ -1,0 +1,114 @@
+Captured: 2026-05-24
+Branch: feat/E4-safer-return
+Method: curl POSTs/GETs against return_save.php with the new flash mechanism.
+
+Proves: the return endpoint now enforces all 5 defects listed in the
+Stage 4 plan — POST-only, CSRF-validated, auth-gated, prepared-
+statement validated, and status-checked.
+
+======================================================================
+Pre-test baseline
+======================================================================
+borrowdetails seed row used as the pending test target:
+  borrow_details_id = 162, book_id = 15, borrow_id = 482, status = 'pending', date_return = NULL
+
+borrowdetails seed row used as the already-returned reject target:
+  borrow_details_id = 163, book_id = 15, borrow_id = 483, status = 'returned', date_return = '2014-03-21 00:30:51'
+
+CSRF token captured by scraping view_borrow.php (64 hex chars, e.g. 886acafb0035ff87...).
+
+======================================================================
+T1 — GET return_save.php?id=482&book_id=15  → rejected
+======================================================================
+HTTP:  302 -> view_borrow.php
+Flash: "Return failed: Return must be submitted via POST (received GET)."
+DB:    row 162 unchanged (still pending, date_return NULL).
+✅ The exact attack from baseline-before-evo (GET-driven state change)
+   is now blocked.
+
+======================================================================
+T2 — POST id=482&book_id=15 (no csrf_token)  → rejected
+======================================================================
+Flash: "Return failed: CSRF token missing or invalid. Please re-open
+        the return dialog and try again."
+DB:    row 162 unchanged.
+
+======================================================================
+T3 — POST id=482&book_id=15 csrf_token=deadbeef  → rejected
+======================================================================
+Flash: "Return failed: CSRF token missing or invalid. ..."
+DB:    row 162 unchanged.
+Note:  hash_equals() does the constant-time compare to prevent
+        timing-based token guessing.
+
+======================================================================
+T4 — POST id=99999&book_id=15 csrf_token=<valid>  → rejected
+======================================================================
+Flash: "Return failed: No borrow record found for borrow_id=99999, book_id=15."
+DB:    row 162 unchanged.
+
+======================================================================
+T5 — POST id=482&book_id=99999 csrf_token=<valid>  → rejected
+======================================================================
+Flash: "Return failed: No borrow record found for borrow_id=482, book_id=99999."
+DB:    row 162 unchanged.
+
+======================================================================
+T6 — POST id=483&book_id=15 csrf_token=<valid>   → rejected (was the
+     baseline-before-evo defect: this exact request used to overwrite
+     the date_return on an already-returned row)
+======================================================================
+Flash: "Return failed: Cannot return: borrow_details_id=163 is already 'returned'."
+DB:    row 163 unchanged. date_return is still '2014-03-21 00:30:51'.
+✅ The E4 baseline defect (date_return overwrite on already-returned
+   rows) is now rejected by the status check.
+
+======================================================================
+T7 — POST id=482&book_id=15 csrf_token=<valid>   → SUCCESS
+======================================================================
+Flash: "Success: Book ID 15 marked as returned for borrow ID 482."
+DB:    row 162 transitions pending -> returned, date_return = '2026-05-24 03:39:12'
+        (proper DATETIME stored, not a zero-date and not blanked).
+✅ Happy path works end-to-end.
+
+(Row 162 was restored to pending afterwards so future tests start from
+the canonical seed state.)
+
+======================================================================
+Acceptance criteria mapping
+======================================================================
+Plan criterion                                        Test  Status
+----------------------------------------------------- ----  -------
+GET to return_save.php rejected                        T1    ✅
+POST without valid CSRF token rejected                 T2,T3 ✅
+POST with bad borrow_id/book_id rejected               T4,T5 ✅
+POST against already-returned row rejected             T6    ✅
+date_return stored as proper DATETIME (not blanked)    T7    ✅
+Happy path: pending row marked returned correctly      T7    ✅
+UI form uses POST + CSRF token                         -     ✅ (modal_return.php rewritten)
+
+======================================================================
+Code-level proof — the actual changes
+======================================================================
+librarian/session.php
+  + initialises $_SESSION['csrf_token'] (64-hex from random_bytes(32))
+  + defines csrf_field() helper to render the hidden <input>
+  + defines csrf_check() using hash_equals() (constant-time compare)
+
+librarian/return_save.php
+  Before (10 lines): include dbcon, read $_GET, raw UPDATE with
+                     string-interpolated SQL, redirect.
+  After  (45 lines): include session (auth), require POST, require
+                     CSRF, cast IDs to int, prepared SELECT to verify
+                     pending status, prepared UPDATE with affected-rows
+                     check, flash success/error.
+
+librarian/modal_return.php
+  Replaces the `<a href="return_save.php?id=...&book_id=...">Yes</a>`
+  with a `<form method="POST" action="return_save.php">` that carries
+  id, book_id, AND the CSRF token from csrf_field().
+
+librarian/view_borrow.php
+  Adds a flash display block above the table that renders
+  $_SESSION['flash_success'] (green) and $_SESSION['flash_error']
+  (red), and unsets each after display so it's one-shot.
