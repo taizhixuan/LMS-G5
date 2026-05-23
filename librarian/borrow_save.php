@@ -61,13 +61,29 @@ foreach ($book_ids as $bid) {
     if (!isset($found[$bid])) fail('Book ID ' . $bid . ' does not exist.');
 }
 
-mysqli_query($con, "INSERT INTO borrow (member_id, date_borrow, due_date) VALUES ($member_id, NOW(), '$due_date_sql')") or die(mysqli_error($con));
-$query     = mysqli_query($con, "SELECT * FROM borrow ORDER BY borrow_id DESC") or die(mysqli_error($con));
-$row       = mysqli_fetch_array($query);
-$borrow_id = (int) $row['borrow_id'];
+mysqli_begin_transaction($con);
+try {
+    $stmt = mysqli_prepare($con, "INSERT INTO borrow (member_id, date_borrow, due_date) VALUES (?, NOW(), ?)");
+    mysqli_stmt_bind_param($stmt, 'is', $member_id, $due_date_sql);
+    if (!mysqli_stmt_execute($stmt)) {
+        throw new Exception('Failed to create borrow header: ' . mysqli_stmt_error($stmt));
+    }
+    $borrow_id = mysqli_insert_id($con);
+    mysqli_stmt_close($stmt);
 
-foreach ($book_ids as $bid) {
-    mysqli_query($con, "INSERT INTO borrowdetails (book_id, borrow_id, borrow_status) VALUES ($bid, $borrow_id, 'pending')") or die(mysqli_error($con));
+    $stmt = mysqli_prepare($con, "INSERT INTO borrowdetails (book_id, borrow_id, borrow_status) VALUES (?, ?, 'pending')");
+    foreach ($book_ids as $bid) {
+        mysqli_stmt_bind_param($stmt, 'ii', $bid, $borrow_id);
+        if (!mysqli_stmt_execute($stmt)) {
+            throw new Exception('Failed to save borrow detail for book ' . $bid . ': ' . mysqli_stmt_error($stmt));
+        }
+    }
+    mysqli_stmt_close($stmt);
+
+    mysqli_commit($con);
+} catch (Exception $e) {
+    mysqli_rollback($con);
+    fail('Could not save borrow transaction: ' . $e->getMessage());
 }
 
 header("Location: borrow.php");
