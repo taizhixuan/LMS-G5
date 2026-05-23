@@ -5,8 +5,8 @@
 				<div class="controls">
 				<select name="member_id" class="chzn-select" required/>
 				<option></option>
-				<?php $result =  mysql_query("select * from member")or die(mysql_error()); 
-				while ($row=mysql_fetch_array($result)){ ?>
+				<?php $result =  mysqli_query($con, "select * from member")or die(mysqli_error($con)); 
+				while ($row=mysqli_fetch_array($result)){ ?>
 				<option value="<?php echo $row['member_id']; ?>"><?php echo $row['firstname']." ".$row['lastname']; ?></option>
 				<?php } ?>
 				</select>
@@ -25,3 +25,4 @@
 					</div>
 				</div>
 </div>
+

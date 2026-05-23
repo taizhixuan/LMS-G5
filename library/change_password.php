@@ -2,8 +2,8 @@
 <?php include('session.php'); ?>
 <?php include('navbar.php'); ?>
 <?php
-$query=mysql_query("select * from students where student_id='$session_id'")or die(mysql_error());
-$row=mysql_fetch_array($query);
+$query=mysqli_query($con, "select * from students where student_id='$session_id'")or die(mysqli_error($con));
+$row=mysqli_fetch_array($query);
  ?>
     <div class="container">
 		<div class="margin-top">
@@ -42,7 +42,7 @@ $row=mysql_fetch_array($query);
 						<div class="alert alert-danger">Password Dont Match</div>
 						<?php
 						}else{
-						mysql_query("update students set password = '$np' where student_id = '$session_id' ")or die(mysql_error); ?>
+						mysqli_query($con, "update students set password = '$np' where student_id = '$session_id' ")or die(mysql_error); ?>
 						<div class="alert alert-success">Password Change</div>
 						<?php }}?>
 							</div>

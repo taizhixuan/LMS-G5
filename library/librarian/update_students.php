@@ -12,7 +12,7 @@ $year_level=$_POST['year_level'];
 
 
 
-mysql_query("update member set firstname='$firstname',lastname='$lastname',gender='$gender',address = '$address',contact = '$contact',type = '$type',year_level = '$year_level' where member_id='$id'")or die(mysql_error());
+mysqli_query($con, "update member set firstname='$firstname',lastname='$lastname',gender='$gender',address = '$address',contact = '$contact',type = '$type',year_level = '$year_level' where member_id='$id'")or die(mysqli_error($con));
 								
 								
 header('location:students.php');

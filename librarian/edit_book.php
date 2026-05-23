@@ -7,8 +7,8 @@
 			<div class="row">	
 			<div class="span12">	
 		<?php 
-		$query=mysql_query("select * from book LEFT JOIN category on category.category_id  = book.category_id where book_id='$get_id'")or die(mysql_error());
-		$row=mysql_fetch_array($query);
+		$query=mysqli_query($con, "select * from book LEFT JOIN category on category.category_id  = book.category_id where book_id='$get_id'")or die(mysqli_error($con));
+		$row=mysqli_fetch_array($query);
 		$category_id = $row['category_id'];
 		?>
              <div class="alert alert-danger"><i class="icon-pencil"></i>&nbsp;Edit Books</div>
@@ -29,8 +29,8 @@
 			<div class="controls">
 			<select name="category_id">
 				<option value="<?php echo $category_id; ?>"><?php echo $row['classname']; ?></option>
-				<?php $query1 = mysql_query("select * from category where category_id != '$category_id'")or die(mysql_error());
-				while($row1 = mysql_fetch_array($query1)){
+				<?php $query1 = mysqli_query($con, "select * from category where category_id != '$category_id'")or die(mysqli_error($con));
+				while($row1 = mysqli_fetch_array($query1)){
 				?>
 				<option value="<?php echo $row1['category_id']; ?>"><?php echo $row1['classname']; ?></option>
 				<?php } ?>

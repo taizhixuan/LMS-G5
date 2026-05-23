@@ -50,7 +50,7 @@
 	$firstname=$_POST['firstname'];
 	$lastname=$_POST['lastname'];
 	
-	mysql_query("update users set username='$username', password='$password' , firstname = '$firstname' , lastname = '$lastname'  where user_id='$user_id'")or die(mysql_error()); ?>
+	mysqli_query($con, "update users set username='$username', password='$password' , firstname = '$firstname' , lastname = '$lastname'  where user_id='$user_id'")or die(mysqli_error($con)); ?>
 	<script>
 	window.location="users.php";
 	</script>

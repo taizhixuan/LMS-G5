@@ -11,7 +11,7 @@ $type=$_POST['type'];
 $year_level=$_POST['year_level'];
 $status=$_POST['status'];
 
-mysql_query("update member set firstname='$firstname',lastname='$lastname',gender='$gender',address = '$address',contact = '$contact',type = '$type',year_level = '$year_level',status = '$status' where member_id='$id'")or die(mysql_error());
+mysqli_query($con, "update member set firstname='$firstname',lastname='$lastname',gender='$gender',address = '$address',contact = '$contact',type = '$type',year_level = '$year_level',status = '$status' where member_id='$id'")or die(mysqli_error($con));
 								
 								
 header('location:member.php');

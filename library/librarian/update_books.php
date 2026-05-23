@@ -17,8 +17,8 @@ $status=$_POST['status'];
 
 
 
-mysql_query("update book set book_title='$book_title',category_id='$category_id',author='$author'
-,book_copies = '$book_copies',book_pub = '$book_pub',publisher_name = '$publisher_name',isbn = '$isbn',copyright_year='$copyright_year',status='$status' where book_id='$id'")or die(mysql_error());
+mysqli_query($con, "update book set book_title='$book_title',category_id='$category_id',author='$author'
+,book_copies = '$book_copies',book_pub = '$book_pub',publisher_name = '$publisher_name',isbn = '$isbn',copyright_year='$copyright_year',status='$status' where book_id='$id'")or die(mysqli_error($con));
 								
 								
  header('location:books.php');

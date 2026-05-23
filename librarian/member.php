@@ -28,8 +28,8 @@
                                 </thead>
                                 <tbody>
 								 
-                                  <?php  $user_query=mysql_query("select * from member")or die(mysql_error());
-									while($row=mysql_fetch_array($user_query)){
+                                  <?php  $user_query=mysqli_query($con, "select * from member")or die(mysqli_error($con));
+									while($row=mysqli_fetch_array($user_query)){
 									$id=$row['member_id'];  ?>
 									<tr class="del<?php echo $id ?>">
 									

@@ -1,3 +1,3 @@
 <?php
-mysql_select_db('eb_lms',mysql_connect('localhost','root',''))or die(mysql_error());
+$con = mysqli_connect('localhost', 'root', '', 'eb_lms') or die(mysqli_connect_error());
 ?>
