@@ -1,0 +1,14 @@
+<!--
+Captured: 2026-05-24
+Command:  curl -s "http://localhost/Library-Management-System/dbcon.php"
+Branch:   baseline-before-evo (082d6fb)
+PHP:      8.2.12
+Proves:   Upstream codebase calls mysql_select_db()/mysql_connect(),
+          which were removed in PHP 7.0 (2015). System is unrunnable
+          on any modern PHP environment without the E6 migration.
+-->
+<br />
+<b>Fatal error</b>:  Uncaught Error: Call to undefined function mysql_select_db() in C:\xampp\htdocs\Library-Management-System\dbcon.php:2
+Stack trace:
+#0 {main}
+  thrown in <b>C:\xampp\htdocs\Library-Management-System\dbcon.php</b> on line <b>2</b><br />

@@ -1,0 +1,43 @@
+Source: C:\xampp\apache\logs\error.log
+Captured: 2026-05-24
+Branch under test: baseline-before-evo (082d6fb)
+PHP: 8.2.12 / Apache 2.4.58
+
+Proves: every entry-point page (librarian/index.php, librarian/borrow.php,
+root dbcon.php) crashes with a PHP fatal "Call to undefined function
+mysql_*" when the upstream code is run on PHP 8. The E6 mysqli migration
+is what makes the project runnable at all.
+
+----------------------------------------------------------------------
+[Sun May 24 01:40:48.287085 2026] [php:error] [client ::1:53278]
+PHP Fatal error: Uncaught Error: Call to undefined function mysql_select_db()
+  in C:\xampp\htdocs\Library-Management-System\librarian\dbcon.php:2
+Stack trace:
+  #0 librarian/header.php(57): include()
+  #1 librarian/index.php(1): include('...librarian/dbcon.php')
+  #2 {main}
+  thrown in librarian/dbcon.php on line 2
+
+[Sun May 24 01:42:32.355053 2026] [php:error] [client ::1:55091]
+PHP Fatal error: Uncaught Error: Call to undefined function mysql_query()
+  in C:\xampp\htdocs\Library-Management-System\librarian\index.php:39
+Stack trace:
+  #0 {main}
+  thrown in librarian/index.php on line 39
+
+[Sun May 24 02:46:07.472041 2026] [php:error] [client ::1:60508]
+PHP Fatal error: Uncaught Error: Call to undefined function mysql_select_db()
+  in C:\xampp\htdocs\Library-Management-System\librarian\dbcon.php:2
+Stack trace:
+  #0 librarian/header.php(57): include()
+  #1 librarian/borrow.php(1): include('...librarian/dbcon.php')
+  #2 {main}
+  thrown in librarian/dbcon.php on line 2
+
+[Sun May 24 02:46:50.317046 2026] [php:error] [client ::1:56381]
+PHP Fatal error: Uncaught Error: Call to undefined function mysql_select_db()
+  in C:\xampp\htdocs\Library-Management-System\dbcon.php:2
+Stack trace:
+  #0 {main}
+  thrown in dbcon.php on line 2
+----------------------------------------------------------------------
