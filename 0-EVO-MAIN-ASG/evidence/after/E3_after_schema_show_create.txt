@@ -1,0 +1,71 @@
+Captured: 2026-05-24 (immediately after running 001_schema_upgrade.sql on live jnv)
+Source: mysql -u root --port=3307 jnv -e "SHOW CREATE TABLE ..."
+Branch: feat/E3-schema-upgrade
+
+Proves: All E3 acceptance criteria from the Stage 1 plan are met.
+
+======================================================================
+borrow table — AFTER
+======================================================================
+CREATE TABLE `borrow` (
+  `borrow_id`   int(11)   NOT NULL AUTO_INCREMENT,
+  `member_id`   int(11)   NOT NULL,                  -- was BIGINT(50); aligned to member.member_id type for FK
+  `date_borrow` datetime  NOT NULL,                  -- was varchar(100)
+  `due_date`    date      DEFAULT NULL,              -- was varchar(100); DD/MM/YYYY values normalised in migration
+  PRIMARY KEY (`borrow_id`),
+  KEY `borrowerid` (`member_id`),
+  KEY `borrowid`   (`borrow_id`),
+  CONSTRAINT `fk_borrow_member`
+    FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
+    ON UPDATE CASCADE                                -- ON DELETE RESTRICT is implicit (MariaDB default; omitted from SHOW CREATE)
+) ENGINE=InnoDB AUTO_INCREMENT=485 DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci
+
+======================================================================
+borrowdetails table — AFTER
+======================================================================
+CREATE TABLE `borrowdetails` (
+  `borrow_details_id` int(11)     NOT NULL AUTO_INCREMENT,
+  `book_id`           int(11)     NOT NULL,
+  `borrow_id`         int(11)     NOT NULL,
+  `borrow_status`     varchar(50) NOT NULL,
+  `date_return`       datetime    DEFAULT NULL,      -- was varchar(100) NOT NULL with '' for pending; now NULL for pending
+  PRIMARY KEY (`borrow_details_id`),
+  KEY `fk_borrowdetails_borrow` (`borrow_id`),
+  KEY `fk_borrowdetails_book`   (`book_id`),
+  CONSTRAINT `fk_borrowdetails_book`
+    FOREIGN KEY (`book_id`)   REFERENCES `book`   (`book_id`)
+    ON UPDATE CASCADE,
+  CONSTRAINT `fk_borrowdetails_borrow`
+    FOREIGN KEY (`borrow_id`) REFERENCES `borrow` (`borrow_id`)
+    ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=170 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
+
+======================================================================
+Data preservation check — AFTER
+======================================================================
+borrow:
+  borrow_id  member_id  date_borrow            due_date
+  484        55         2014-03-20 23:50:27    2014-03-21   <- was '21/03/2014' varchar, now DATE
+  483        55         2014-03-20 23:49:34    2014-03-21   <- was '21/03/2014' varchar, now DATE
+  482        52         2014-03-20 23:38:22    2014-01-03   <- was '03/01/2014' varchar, now DATE
+
+borrowdetails:
+  borrow_details_id  book_id  borrow_id  borrow_status  date_return
+  164                16       484        pending        NULL                  <- was '' varchar, now NULL
+  163                15       483        returned       2014-03-21 00:30:51   <- preserved verbatim
+  162                15       482        pending        NULL                  <- was '' varchar, now NULL
+
+All 3 seed borrow rows and 3 seed borrowdetails rows preserved with
+semantically correct dates. No data loss.
+
+======================================================================
+Known limitation — surface to Stage 2 (E1)
+======================================================================
+The existing librarian/borrow.php datepicker emits due_date as
+DD/MM/YYYY (e.g. '30/06/2026'). librarian/borrow_save.php passes it
+straight into the INSERT. Against the new DATE column, MariaDB
+silently coerces this to '0000-00-00' instead of rejecting it.
+
+Until E1 rewrites borrow_save.php with proper validation +
+DD/MM/YYYY -> YYYY-MM-DD conversion, the UI will record zero-dates
+on new borrows. All existing data is unaffected.

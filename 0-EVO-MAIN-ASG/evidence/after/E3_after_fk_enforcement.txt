@@ -1,0 +1,24 @@
+Captured: 2026-05-24 (after applying 001_schema_upgrade.sql to live jnv)
+
+Proves: the new foreign key constraint actively blocks deletes that
+would orphan borrow rows. Before E3, the borrow table used MyISAM
+and had no relational integrity enforcement at the DB level.
+
+======================================================================
+Test 1 — Attempting to delete a member with active borrow history
+======================================================================
+Command:
+  mysql -u root --port=3307 jnv -e "DELETE FROM member WHERE member_id = 52;"
+
+Member 52 is referenced by borrow.borrow_id = 482.
+
+Result:
+  ERROR 1451 (23000) at line 1: Cannot delete or update a parent row:
+  a foreign key constraint fails
+  (`jnv`.`borrow`, CONSTRAINT `fk_borrow_member`
+   FOREIGN KEY (`member_id`) REFERENCES `member` (`member_id`)
+   ON UPDATE CASCADE)
+
+Status: ✅ FK rejected the destructive delete. Before E3, this
+DELETE would have succeeded silently and left borrow.member_id = 52
+pointing at a non-existent member.
