@@ -4,8 +4,20 @@
     <div class="container">
 		<div class="margin-top">
 			<div class="row">	
-				<div class="span12">		
+				<div class="span12">
 						<div class="alert alert-danger"><strong>Borrowed Books</strong></div>
+<?php if (!empty($_SESSION['flash_success'])): ?>
+						<div class="alert alert-success" style="background:#dff0d8; border:1px solid #5cb85c; color:#3c763d;">
+							<button type="button" class="close" data-dismiss="alert">&times;</button>
+							<strong>Success:</strong> <?php echo htmlspecialchars($_SESSION['flash_success']); ?>
+						</div>
+<?php unset($_SESSION['flash_success']); endif; ?>
+<?php if (!empty($_SESSION['flash_error'])): ?>
+						<div class="alert alert-error" style="background:#fde2e2; border:1px solid #d9534f; color:#a94442;">
+							<button type="button" class="close" data-dismiss="alert">&times;</button>
+							<strong>Return failed:</strong> <?php echo htmlspecialchars($_SESSION['flash_error']); ?>
+						</div>
+<?php unset($_SESSION['flash_error']); endif; ?>
                             <table cellpadding="0" cellspacing="0" border="0" class="table" id="example">
 
                                 <thead>
