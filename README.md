@@ -4,8 +4,8 @@
 >
 > Six enhancements have been applied to the borrow/return workflow and to PHP 8 compatibility. The original upstream README content is preserved below for attribution; the new setup steps live in [Group 5 fork setup](#group-5-fork-setup-cse6364-2026) — read that first.
 >
-> Evidence index: [`0-EVO-MAIN-ASG/evidence/MANIFEST.md`](0-EVO-MAIN-ASG/evidence/MANIFEST.md)
-> Test matrix:    [`0-EVO-MAIN-ASG/testing/test-matrix.md`](0-EVO-MAIN-ASG/testing/test-matrix.md)
+> Evidence index: [`cse6364/evidence/MANIFEST.md`](cse6364/evidence/MANIFEST.md)
+> Test matrix:    [`cse6364/testing/test-matrix.md`](cse6364/testing/test-matrix.md)
 
 ---
 
@@ -48,13 +48,13 @@ This converts `borrow` and `borrowdetails` from MyISAM/varchar(dates) to InnoDB 
 mysqldump -u root --port=3306 jnv > /tmp/jnv-before-migration.sql
 
 # Apply the migration
-mysql -u root --port=3306 jnv < 0-EVO-MAIN-ASG/migrations/001_schema_upgrade.sql
+mysql -u root --port=3306 jnv < cse6364/migrations/001_schema_upgrade.sql
 
 # Verify
 mysql -u root --port=3306 jnv -e "SHOW CREATE TABLE borrow\\G SHOW CREATE TABLE borrowdetails\\G"
 ```
 
-A pre-migration backup is also committed at `0-EVO-MAIN-ASG/migrations/backups/jnv_clean_2026-05-24.sql` for reproducibility.
+A pre-migration backup is also committed at `cse6364/migrations/backups/jnv_clean_2026-05-24.sql` for reproducibility.
 
 ### 4. Configure `dbcon.php` for your local DB host / port
 

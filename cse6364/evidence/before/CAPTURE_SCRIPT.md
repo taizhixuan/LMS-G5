@@ -5,7 +5,7 @@ You can optionally add browser screenshots for E3/E6 if you want pretty
 images for the report, but the text captures are sufficient proof.
 
 Save all screenshots into this folder
-(`0-EVO-MAIN-ASG/evidence/before/`) using the file names listed under
+(`cse6364/evidence/before/`) using the file names listed under
 each section.
 
 Prerequisites:

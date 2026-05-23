@@ -1,9 +1,9 @@
 # Private assignment workspace docs (lecturer-provided, do not redistribute)
-0-EVO-MAIN-ASG/*
+cse6364/*
 # But DO track our deliverable artefacts inside that folder
-!0-EVO-MAIN-ASG/migrations/
-!0-EVO-MAIN-ASG/evidence/
-!0-EVO-MAIN-ASG/testing/
+!cse6364/migrations/
+!cse6364/evidence/
+!cse6364/testing/
 
 # IDE / editor config
 .idea/

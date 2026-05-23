@@ -12,7 +12,7 @@
 --   E4 (safer returns), and E5 (efficient availability JOIN).
 --
 -- Pre-flight:
---   - Take mysqldump first (see 0-EVO-MAIN-ASG/migrations/backups/).
+--   - Take mysqldump first (see cse6364/migrations/backups/).
 --   - Dry-run on jnv_test (CREATE DATABASE jnv_test; source dump; source
 --     this file). Only apply to jnv after dry-run succeeds.
 --

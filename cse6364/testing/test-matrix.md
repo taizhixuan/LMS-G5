@@ -94,4 +94,4 @@ No 500-level responses, no PHP fatal errors in `C:\xampp\apache\logs\error.log` 
 
 ## Test data cleanup
 
-The single borrow row (`borrow_id=486`) and its borrowdetails row created during T09/T10/T11 were deleted at the end of the run. `AUTO_INCREMENT` reset to 486 / 170. Seed-data borrow rows (482/483/484) and seed borrowdetails (162/163/164) are intact and identical to `0-EVO-MAIN-ASG/migrations/backups/jnv_clean_2026-05-24.sql`.
+The single borrow row (`borrow_id=486`) and its borrowdetails row created during T09/T10/T11 were deleted at the end of the run. `AUTO_INCREMENT` reset to 486 / 170. Seed-data borrow rows (482/483/484) and seed borrowdetails (162/163/164) are intact and identical to `cse6364/migrations/backups/jnv_clean_2026-05-24.sql`.
