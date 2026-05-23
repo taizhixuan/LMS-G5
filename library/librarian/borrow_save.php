@@ -14,16 +14,16 @@
 	
 
 
-	mysql_query("insert into borrow (member_id,date_borrow,due_date) values ('$member_id',NOW(),'$due_date')")or die(mysql_error());
-	$query = mysql_query("select * from borrow order by borrow_id DESC")or die(mysql_error());
-	$row = mysql_fetch_array($query);
+	mysqli_query($con, "insert into borrow (member_id,date_borrow,due_date) values ('$member_id',NOW(),'$due_date')")or die(mysqli_error($con));
+	$query = mysqli_query($con, "select * from borrow order by borrow_id DESC")or die(mysqli_error($con));
+	$row = mysqli_fetch_array($query);
 	$borrow_id  = $row['borrow_id']; 
 	
 
 $N = count($id);
 for($i=0; $i < $N; $i++)
 {
-	 mysql_query("insert borrowdetails (book_id,borrow_id,borrow_status) values('$id[$i]','$borrow_id','pending')")or die(mysql_error());
+	 mysqli_query($con, "insert borrowdetails (book_id,borrow_id,borrow_status) values('$id[$i]','$borrow_id','pending')")or die(mysqli_error($con));
 
 }
 header("location: borrow.php");

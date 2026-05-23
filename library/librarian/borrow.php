@@ -19,8 +19,8 @@
 				<div class="controls">
 				<select name="member_id" class="chzn-select"required/>
 				<option></option>
-				<?php $result =  mysql_query("select * from member")or die(mysql_error()); 
-				while ($row=mysql_fetch_array($result)){ ?>
+				<?php $result =  mysqli_query($con, "select * from member")or die(mysqli_error($con)); 
+				while ($row=mysqli_fetch_array($result)){ ?>
 				<option value="<?php echo $row['member_id']; ?>"><?php echo $row['firstname']." ".$row['lastname']; ?></option>
 				<?php } ?>
 				</select>
@@ -58,13 +58,13 @@
                                 </thead>
                                 <tbody>
 								 
-                                  <?php  $user_query=mysql_query("select * from book where status != 'Archive' ")or die(mysql_error());
-									while($row=mysql_fetch_array($user_query)){
+                                  <?php  $user_query=mysqli_query($con, "select * from book where status != 'Archive' ")or die(mysqli_error($con));
+									while($row=mysqli_fetch_array($user_query)){
 									$id=$row['book_id'];  
 									$cat_id=$row['category_id'];
 
-											$cat_query = mysql_query("select * from category where category_id = '$cat_id'")or die(mysql_error());
-											$cat_row = mysql_fetch_array($cat_query);
+											$cat_query = mysqli_query($con, "select * from category where category_id = '$cat_id'")or die(mysqli_error($con));
+											$cat_row = mysqli_fetch_array($cat_query);
 									?>
 									<tr class="del<?php echo $id ?>">
 									

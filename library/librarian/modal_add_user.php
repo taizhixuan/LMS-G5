@@ -45,6 +45,6 @@
 	$firstname=$_POST['firstname'];
 	$lastname=$_POST['lastname'];
 	
-	mysql_query("insert into users (username,password,firstname,lastname) values('$username','$password','$firstname','$lastname')")or die(mysql_error());
+	mysqli_query($con, "insert into users (username,password,firstname,lastname) values('$username','$password','$firstname','$lastname')")or die(mysqli_error($con));
 	}
 	?>

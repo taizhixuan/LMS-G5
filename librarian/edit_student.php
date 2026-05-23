@@ -7,8 +7,8 @@
 			<div class="row">	
 			<div class="span12">	
 		<?php 
-		$query=mysql_query("select * from member where member_id='$get_id'")or die(mysql_error());
-		$row=mysql_fetch_array($query);
+		$query=mysqli_query($con, "select * from member where member_id='$get_id'")or die(mysqli_error($con));
+		$row=mysqli_fetch_array($query);
 		
 		?>
              <div class="alert alert-info"><i class="icon-pencil"></i>&nbsp;Edit Member</div>
@@ -55,8 +55,8 @@
 			
 			
 <?php 
-		$query=mysql_query("select * from member where member_id='$get_id'")or die(mysql_error());
-		$row1=mysql_fetch_array($query);
+		$query=mysqli_query($con, "select * from member where member_id='$get_id'")or die(mysqli_error($con));
+		$row1=mysqli_fetch_array($query);
 		
 		?>					
 									
@@ -74,8 +74,8 @@
 				<select name="year_level" required>
 					
 	<?php 
-		$query=mysql_query("select * from member where member_id='$get_id'")or die(mysql_error());
-		$row1=mysql_fetch_array($query);
+		$query=mysqli_query($con, "select * from member where member_id='$get_id'")or die(mysqli_error($con));
+		$row1=mysqli_fetch_array($query);
 		
 		?>					
 								
