@@ -43,7 +43,7 @@ A `jnv_baseline_polluted.sql` mysqldump should be taken before Stage 1 so we alw
 
 ## Stage status
 
-- Stage 0 — Baseline ✅ in progress (4/6 pieces captured by Claude, 4 user actions remaining)
+- Stage 0 — Baseline ✅ in progress (4/6 pieces captured, 4 user actions remaining)
 - Stage 1 — E3 schema migration ⏳ blocked on Stage 0 sign-off
 - Stages 2–5 — E1, E2, E4, E5 ⏳ blocked on Stage 1
 - Stage 6 — Integration + regression ⏳ blocked on Stages 1–5
