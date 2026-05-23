@@ -46,35 +46,35 @@
                                 </thead>
                                 <tbody>
 								 
-                                  <?php 
-
-							
-							
-									
-
-								  $user_query=mysqli_query($con, "select * from book where status != 'Archive'")or die(mysqli_error($con));
-									while($row=mysqli_fetch_array($user_query)){
-									$id=$row['book_id'];  
-									$cat_id=$row['category_id'];
-									$book_copies = $row['book_copies'];
-									
-									$borrow_details = mysqli_query($con, "select * from borrowdetails where book_id = '$id' and borrow_status = 'pending'");
-									$row11 = mysqli_fetch_array($borrow_details);
-									$count = mysqli_num_rows($borrow_details);
-									
-									$total =  $book_copies  -  $count; 
-									/* $t4otal =  $book_copies  - $borrow_details;
-									
-									echo $total; */
-											$cat_query = mysqli_query($con, "select * from category where category_id = '$cat_id'")or die(mysqli_error($con));
-											$cat_row = mysqli_fetch_array($cat_query);
-									?>
+                                  <?php
+                                  // E5: single JOIN replaces the prior 2N+1 query loop.
+                                  // The available-copies formula is intentionally identical
+                                  // to the one used by E1's borrow_save.php validation so
+                                  // both code paths share one source of truth.
+                                  $user_query = mysqli_query($con, "
+                                      SELECT b.book_id, b.book_title, b.author, b.book_copies,
+                                             b.book_pub, b.publisher_name, b.isbn,
+                                             b.copyright_year, b.date_added, b.status,
+                                             c.classname,
+                                             b.book_copies - COALESCE(SUM(CASE WHEN bd.borrow_status = 'pending' THEN 1 ELSE 0 END), 0) AS available
+                                        FROM book b
+                                   LEFT JOIN category      c  ON c.category_id = b.category_id
+                                   LEFT JOIN borrowdetails bd ON bd.book_id    = b.book_id
+                                       WHERE b.status != 'Archive'
+                                    GROUP BY b.book_id, b.book_title, b.author, b.book_copies,
+                                             b.book_pub, b.publisher_name, b.isbn,
+                                             b.copyright_year, b.date_added, b.status, c.classname
+                                    ORDER BY b.book_id
+                                  ") or die(mysqli_error($con));
+                                  while ($row = mysqli_fetch_array($user_query)) {
+                                      $id = $row['book_id'];
+                                  ?>
 									<tr class="del<?php echo $id ?>">
                                     <td><?php echo $row['book_id']; ?></td>
                                     <td><?php echo $row['book_title']; ?></td>
-									<td><?php echo $cat_row ['classname']; ?> </td>
-                                    <td><?php echo $row['author']; ?> </td> 
-                                    <td class="action"><?php echo /* $row['book_copies']; */   $total;   ?> </td>
+									<td><?php echo $row['classname']; ?> </td>
+                                    <td><?php echo $row['author']; ?> </td>
+                                    <td class="action"><?php echo $row['available']; ?> </td>
                                      <td><?php echo $row['book_pub']; ?></td>
 									 <td><?php echo $row['publisher_name']; ?></td>
 									 <td><?php echo $row['isbn']; ?></td>

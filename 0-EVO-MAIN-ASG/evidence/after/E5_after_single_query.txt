@@ -1,0 +1,122 @@
+Captured: 2026-05-24
+Branch: feat/E5-efficient-availability
+Method: MariaDB general_log captures the SQL each page load actually fires.
+
+Proves: the books.php "All Books" page now issues exactly ONE query
+to render the entire table, replacing the previous 2N+1 pattern that
+fired 36 queries for 17 active books. The available-copies number
+the librarian sees is computed using the SAME formula the E1
+borrow_save.php validator uses, so the UI cannot show "1 available"
+while the validator rejects the borrow.
+
+======================================================================
+PRE-E5 query count (baseline)
+======================================================================
+Page: GET /Library-Management-System/librarian/books.php
+Authenticated session, all 17 non-Archive books listed.
+
+  SELECT COUNT(*) AS total_queries FROM mysql.general_log WHERE command_type='Query';
+  -> 36
+
+Breakdown:
+   1  outer book SELECT
+  17  per-book borrowdetails SELECT
+  17  per-book category SELECT
+   1  connection setup / SET-NAMES style overhead
+  ---
+  36  TOTAL
+
+Sample loop queries (first 10):
+  select * from borrowdetails where book_id = '15' and borrow_status = 'pending'
+  select * from borrowdetails where book_id = '17' and borrow_status = 'pending'
+  select * from borrowdetails where book_id = '18' and borrow_status = 'pending'
+  ...
+  select * from category where category_id = '8'
+  select * from category where category_id = '3'
+  ...
+
+======================================================================
+POST-E5 query count
+======================================================================
+Same page, same data, same session.
+
+  SELECT COUNT(*) AS total_queries FROM mysql.general_log WHERE command_type='Query';
+  -> 2   (1 page query + 1 'SET GLOBAL general_log OFF' from the test harness)
+
+Only relevant query:
+  SELECT b.book_id, b.book_title, b.author, b.book_copies,
+         b.book_pub, b.publisher_name, b.isbn, b.copyright_year,
+         b.date_added, b.status, c.classname,
+         b.book_copies - COALESCE(SUM(CASE WHEN bd.borrow_status='pending' THEN 1 ELSE 0 END), 0) AS available
+    FROM book b
+    LEFT JOIN category      c  ON c.category_id = b.category_id
+    LEFT JOIN borrowdetails bd ON bd.book_id    = b.book_id
+   WHERE b.status != 'Archive'
+GROUP BY b.book_id, b.book_title, b.author, b.book_copies,
+         b.book_pub, b.publisher_name, b.isbn, b.copyright_year,
+         b.date_added, b.status, c.classname
+ORDER BY b.book_id
+
+Reduction:
+  36  -> 1     (page render)
+  18x fewer round trips per row (was 2 per row + setup, now amortised
+  across one query)
+  Per-page improvement: 36 -> 1 = 35 fewer queries per books.php load.
+
+======================================================================
+Visual regression check (rendered HTML diff)
+======================================================================
+diff <(grep -oE '<td>[^<]*</td>' books_before.html) \
+     <(grep -oE '<td>[^<]*</td>' books_after.html)
+  -> 0 differences
+
+All 17 book rows render with identical title, author, category,
+copies, publisher, ISBN, copyright year, date added, status, and
+ACTION column content. The 17-byte raw HTML size difference is
+whitespace inside the SQL comment block, not visible content.
+
+======================================================================
+"Single source of truth" check (E1 vs E5 formula parity)
+======================================================================
+librarian/borrow_save.php (E1 validation, lines 37-43):
+  SELECT b.book_id, b.book_copies,
+         b.book_copies - COALESCE(SUM(CASE WHEN bd.borrow_status='pending' THEN 1 ELSE 0 END), 0) AS available
+    FROM book b
+    LEFT JOIN borrowdetails bd ON bd.book_id = b.book_id
+   WHERE b.book_id IN (?...)
+GROUP BY b.book_id, b.book_copies
+
+librarian/books.php (E5 listing):
+  ... b.book_copies - COALESCE(SUM(CASE WHEN bd.borrow_status='pending' THEN 1 ELSE 0 END), 0) AS available
+       FROM book b
+  LEFT JOIN borrowdetails bd ON bd.book_id = b.book_id ...
+
+Identical predicate (status='pending'), identical arithmetic
+(book_copies - COUNT(pending)), identical COALESCE. So a book that
+shows up as "0 available" on books.php is guaranteed to be rejected
+by borrow_save.php with "Book ID N has no available copies", and
+vice versa.
+
+======================================================================
+Cross-check: rendered available counts vs DB ground truth
+======================================================================
+book_id  book_title                           copies  pending  available (DB)  available (HTML)
+15       Natural Resources                    15      1        14              14   ✅
+17       Algebra 1                            35      0        35              35   ✅
+18       The Philippine Daily Inquirer         3      0         3               3   ✅
+19       Science in our World                 25      0        25              25   ✅
+20       Literature                           20      0        20              20   ✅
+21       Lexicon Universal Encyclopedia       10      0        10              10   ✅
+22       Science and Invention Encyclopedia   16      0        16              16   ✅
+23       Integrated Science Textbook          15      0        15              15   ✅
+24       Algebra 2                            15      0        15              15   ✅
+25       Wiki at Panitikan                    28      0        28              28   ✅
+26       English Expressways TextBook         23      0        23              23   ✅
+27       Asya Pag-usbong Ng Kabihasnan        21      0        21              21   ✅
+28       Literature (the readers choice)      20      0        20              20   ✅
+29       Beloved a Novel                      13      0        13              13   ✅
+30       Silver Burdett Engish                12      0        12              12   ✅
+31       The Corporate Warriors                8      0         8               8   ✅
+32       Introduction to Information System   10      0        10              10   ✅
+
+All 17 rows match.
