@@ -1,4 +1,113 @@
 # Online Library Management System
+
+> **This repository is a CSE6364 (Software Evolution & Maintenance, MMU, Term 2610) maintenance fork by Group 5 of the upstream project at https://github.com/vinitshahdeo/Library-Management-System.**
+>
+> Six enhancements have been applied to the borrow/return workflow and to PHP 8 compatibility. The original upstream README content is preserved below for attribution; the new setup steps live in [Group 5 fork setup](#group-5-fork-setup-cse6364-2026) — read that first.
+>
+> Project report: [`0-EVO-MAIN-ASG/Part_II_Report.md`](0-EVO-MAIN-ASG/Part_II_Report.md)
+> Evidence index: [`0-EVO-MAIN-ASG/evidence/MANIFEST.md`](0-EVO-MAIN-ASG/evidence/MANIFEST.md)
+> Test matrix:    [`0-EVO-MAIN-ASG/testing/test-matrix.md`](0-EVO-MAIN-ASG/testing/test-matrix.md)
+
+---
+
+## Group 5 fork setup (CSE6364 2026)
+
+The upstream "How to run?" section below is outdated against modern PHP/MariaDB. Use these steps instead.
+
+### Prerequisites
+
+| Tool | Tested version | Why |
+|------|----------------|-----|
+| **XAMPP** (or equivalent Apache + MariaDB bundle) | XAMPP 8.2.12 (PHP 8.2.12, MariaDB 10.4, Apache 2.4.58) | Local dev environment |
+| **Git** | any modern | Branch / merge / rollback |
+| **Default credentials** | `admin` / `admin` | Built into the seed `users` table |
+
+### 1. Clone into your web root
+
+```bash
+cd /c/xampp/htdocs/
+git clone <fork-url> Library-Management-System
+cd Library-Management-System
+```
+
+### 2. Create the database and import the seed schema
+
+```bash
+# Pick the port your local MariaDB listens on (default 3306, ours is 3307)
+mysql -u root --port=3306 -e "CREATE DATABASE jnv;"
+mysql -u root --port=3306 jnv < eb_lms.sql
+```
+
+Note: the seed file is named `eb_lms.sql` but actually creates a database named `jnv`. The four `dbcon.php` copies have all been unified on `jnv`; this naming mismatch was the original confusion and is documented in [`0-EVO-MAIN-ASG/Part_II_Report.md`](0-EVO-MAIN-ASG/Part_II_Report.md) §7.1.
+
+### 3. Apply the schema upgrade migration
+
+This converts `borrow` and `borrowdetails` from MyISAM/varchar(dates) to InnoDB with proper `DATE` / `DATETIME` columns and foreign keys. Without this step the E1 server-side validation will accept `due_date` values that silently coerce to `'0000-00-00'`.
+
+```bash
+# Back up first in case something goes wrong
+mysqldump -u root --port=3306 jnv > /tmp/jnv-before-migration.sql
+
+# Apply the migration
+mysql -u root --port=3306 jnv < 0-EVO-MAIN-ASG/migrations/001_schema_upgrade.sql
+
+# Verify
+mysql -u root --port=3306 jnv -e "SHOW CREATE TABLE borrow\\G SHOW CREATE TABLE borrowdetails\\G"
+```
+
+A pre-migration backup is also committed at `0-EVO-MAIN-ASG/migrations/backups/jnv_clean_2026-05-24.sql` for reproducibility.
+
+### 4. Configure `dbcon.php` for your local DB host / port
+
+There are four `dbcon.php` copies (the upstream codebase duplicates the `librarian/` and `library/` folders). All four currently hardcode `127.0.0.1` and port `3307` because that is what our development environment uses:
+
+```php
+$con = mysqli_connect('127.0.0.1', 'root', '', 'jnv', 3307);
+```
+
+If your MariaDB listens on the default port `3306` and accepts `localhost`, change those values in all four files:
+
+```
+dbcon.php
+librarian/dbcon.php
+library/dbcon.php
+library/librarian/dbcon.php
+```
+
+### 5. Run
+
+Start Apache + MariaDB in XAMPP, then open:
+
+```
+http://localhost/Library-Management-System/librarian/
+```
+
+Login with `admin` / `admin`.
+
+---
+
+## What changed in this fork
+
+Six enhancements were applied on `evo-main`, each on its own feature branch merged with `--no-ff`:
+
+| # | Branch | Type | What |
+|---|--------|------|------|
+| **E1** | `feat/E1-server-validation` | Corrective | Server-side validation in `borrow_save.php` (count, member, book exists, book available, duplicates, due_date format) with `$_SESSION['flash_error']` user feedback |
+| **E2** | `feat/E2-transaction-safe-save` | Corrective | `mysqli_begin_transaction` + `mysqli_insert_id` + rollback-on-failure (replaces race-prone `SELECT … ORDER BY borrow_id DESC`) |
+| **E3** | `feat/E3-schema-upgrade` | Perfective | Schema upgrade: varchar dates → `DATETIME`/`DATE`, MyISAM → InnoDB, three foreign keys with `ON DELETE RESTRICT` |
+| **E4** | `feat/E4-safer-return` | Corrective + Preventive | `return_save.php`: POST-only, CSRF token, prepared statements, status check (rejects already-returned rows) |
+| **E5** | `feat/E5-efficient-availability` | Perfective | `books.php` collapsed from 36 queries to 1 via single `LEFT JOIN ... GROUP BY` |
+| **E6** | `feat/E6-php8-mysqli` | Adaptive | `mysql_*` → `mysqli_*` migration across all 217 PHP files so the codebase runs on PHP 8 (it was removed from PHP 7+ in 2015) |
+
+```bash
+git log --oneline --graph --decorate evo-main      # see the merge structure
+git diff baseline-before-evo..evo-main             # full enhancement diff (excludes [env] commits)
+```
+
+The `baseline-before-evo` tag points at the unmodified upstream commit; any "before vs after" comparison uses that tag as ground zero.
+
+## Original upstream README (preserved for attribution)
+
 #### An interactive web portal for automating various manual processes done by librarian.
 
 [![GitHub repo size](https://img.shields.io/github/repo-size/vinitshahdeo/Library-Management-System.svg?logo=github&style=social)](https://vinitshahdeo.github.io/Library-Management-System/) [![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/vinitshahdeo/Library-Management-System.svg?logo=git&style=social)](https://vinitshahdeo.github.io/Library-Management-System/) [![GitHub license](https://img.shields.io/github/license/vinitshahdeo/Library-Management-System.svg?style=social&logo=github)](https://github.com/vinitshahdeo/Library-Management-System/blob/master/LICENSE)
