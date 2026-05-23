@@ -1,0 +1,7 @@
+# Assignment workspace (private to Group 5, not part of upstream)
+0-EVO-MAIN-ASG/
+
+# IDE / editor config
+.idea/
+.vscode/
+*.swp
