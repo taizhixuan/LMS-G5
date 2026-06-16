@@ -56,5 +56,3 @@ See `testing/test-matrix.md` for the consolidated 16-test matrix
 - Stage 4 — E4 safer return ✅ complete
 - Stage 5 — E5 efficient availability ✅ complete
 - Stage 6 — Integration + regression ✅ complete
-- Stage 7 — Report + README ⏳ in progress
-- Stage 8 — Presentation deck ⏳ pending Stage 7
